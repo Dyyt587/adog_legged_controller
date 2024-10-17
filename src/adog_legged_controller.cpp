@@ -49,10 +49,16 @@ using ControllerReferenceMsg = adog_legged_controller::AdogLeggedController::Con
 void reset_controller_reference_msg(
   std::shared_ptr<ControllerReferenceMsg> & msg, const std::vector<std::string> & joint_names)
 {
-  msg->joint_names = joint_names;
-  msg->displacements.resize(joint_names.size(), std::numeric_limits<double>::quiet_NaN());
-  msg->velocities.resize(joint_names.size(), std::numeric_limits<double>::quiet_NaN());
-  msg->duration = std::numeric_limits<double>::quiet_NaN();
+  //msg->joint_names = joint_names;
+  //msg[0]->position=0;
+  msg->multi_jointmit_array.size();
+  for(auto jointmit: multi_jointmit_array)
+  {
+    
+  }
+  // msg->displacements.resize(joint_names.size(), std::numeric_limits<double>::quiet_NaN());
+  // msg->velocities.resize(joint_names.size(), std::numeric_limits<double>::quiet_NaN());
+  // msg->duration = std::numeric_limits<double>::quiet_NaN();
 }
 
 }  // namespace
@@ -94,11 +100,11 @@ controller_interface::CallbackReturn AdogLeggedController::on_configure(
 
   if (params_.joints.size() != state_joints_.size())
   {
-    RCLCPP_FATAL(
+    RCLCPP_WARN(
       get_node()->get_logger(),
       "Size of 'joints' (%zu) and 'state_joints' (%zu) parameters has to be the same!",
       params_.joints.size(), state_joints_.size());
-    return CallbackReturn::FAILURE;
+    //return CallbackReturn::FAILURE;
   }
 
   // topics QoS

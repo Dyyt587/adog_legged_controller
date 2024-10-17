@@ -10,6 +10,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   control_msgs
   controller_interface
   hardware_interface
+  adog_legged_interfaces
   pluginlib
   rclcpp
   rclcpp_lifecycle

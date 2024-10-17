@@ -37,6 +37,8 @@
 // TODO(anyone): Replace with controller specific messages
 #include "control_msgs/msg/joint_controller_state.hpp"
 #include "control_msgs/msg/joint_jog.hpp"
+#include "adog_legged_interfaces/msg/multi_joint_mit.hpp"
+#include "adog_legged_interfaces/msg/joint_mit.hpp"
 
 namespace adog_legged_controller
 {
@@ -85,7 +87,8 @@ public:
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
   // TODO(anyone): replace the state and command message types
-  using ControllerReferenceMsg = control_msgs::msg::JointJog;
+  using ControllerReferenceMsg = adog_legged_interfaces::msg::MultiJointMit;
+  //using ControllerReferenceMsg = control_msgs::msg::JointJog;
   using ControllerModeSrvType = std_srvs::srv::SetBool;
   using ControllerStateMsg = control_msgs::msg::JointControllerState;
 

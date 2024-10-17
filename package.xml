@@ -16,6 +16,8 @@
   <depend>controller_interface</depend>
 
   <depend>hardware_interface</depend>
+  
+  <depend>adog_legged_interfaces</depend>
 
   <depend>pluginlib</depend>
 
