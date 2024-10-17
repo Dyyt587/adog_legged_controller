@@ -192,3 +192,6 @@ Here are some useful references for developing with ROS 2:
  - [Colcon Documentation](https://colcon.readthedocs.io/en/released/#)
  - [ROS 2 Design Documentation](https://design.ros2.org/)
  - [ROS 2 Launch Architecture](https://github.com/ros2/launch/blob/master/launch/doc/source/architecture.rst)
+
+Pluginlib-Library: adog_legged_controller
+Plugin: adog_legged_controller/AdogLeggedController (controller_interface::ControllerInterface)
