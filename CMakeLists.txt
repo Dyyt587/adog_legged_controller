@@ -16,11 +16,13 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   rclcpp_lifecycle
   realtime_tools
   std_srvs
+  rcl_interfaces
 )
  
 #find_package(rosidl_default_generators REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(generate_parameter_library REQUIRED)
+
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
@@ -38,12 +40,17 @@ add_library(
   adog_legged_controller
   SHARED
   src/adog_legged_controller.cpp
+  src/apid.c
+  src/apid_exfunc.c
+  src/apid_ex_fuzzy.c
 )
 target_include_directories(adog_legged_controller PUBLIC
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
 target_link_libraries(adog_legged_controller adog_legged_controller_parameters)
+
 ament_target_dependencies(adog_legged_controller ${THIS_PACKAGE_INCLUDE_DEPENDS})
+
 target_compile_definitions(adog_legged_controller PRIVATE "ADOG_LEGGED_CONTROLLER_BUILDING_DLL")
 
 pluginlib_export_plugin_description_file(

@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "controller_interface/helpers.hpp"
+#include "rclcpp/rclcpp.hpp"
 
 namespace
 {  // utility
@@ -49,12 +50,14 @@ using ControllerReferenceMsg = adog_legged_controller::AdogLeggedController::Con
 void reset_controller_reference_msg(
   std::shared_ptr<ControllerReferenceMsg> & msg, const std::vector<std::string> & joint_names)
 {
-  //msg->joint_names = joint_names;
-  //msg[0]->position=0;
-  msg->multi_jointmit_array.size();
-  for(auto jointmit: multi_jointmit_array)
+  // msg->joint_names = joint_names;
+  // msg[0]->position=0;
+  (void)joint_names;
+  for (auto & it : msg->multi_jointmit_array)
   {
-    
+    it.effort = 0;
+    it.velocity = 0;
+    it.position = 0;
   }
   // msg->displacements.resize(joint_names.size(), std::numeric_limits<double>::quiet_NaN());
   // msg->velocities.resize(joint_names.size(), std::numeric_limits<double>::quiet_NaN());
@@ -71,14 +74,18 @@ controller_interface::CallbackReturn AdogLeggedController::on_init()
 {
   control_mode_.initRT(control_mode_type::FAST);
 
+  RCLCPP_ERROR(get_node()->get_logger(), "1");
+
   try
   {
     param_listener_ = std::make_shared<adog_legged_controller::ParamListener>(get_node());
   }
   catch (const std::exception & e)
   {
-    fprintf(stderr, "Exception thrown during controller's init with message: %s \n", e.what());
-    return controller_interface::CallbackReturn::ERROR;
+    RCLCPP_ERROR(
+      get_node()->get_logger(), "Exception thrown during controller's init with message: %s \n",
+      e.what());
+    // return controller_interface::CallbackReturn::ERROR;
   }
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -87,6 +94,8 @@ controller_interface::CallbackReturn AdogLeggedController::on_init()
 controller_interface::CallbackReturn AdogLeggedController::on_configure(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
+  RCLCPP_ERROR(get_node()->get_logger(), "2");
+
   params_ = param_listener_->get_params();
 
   if (!params_.state_joints.empty())
@@ -104,9 +113,19 @@ controller_interface::CallbackReturn AdogLeggedController::on_configure(
       get_node()->get_logger(),
       "Size of 'joints' (%zu) and 'state_joints' (%zu) parameters has to be the same!",
       params_.joints.size(), state_joints_.size());
-    //return CallbackReturn::FAILURE;
+    // return CallbackReturn::FAILURE;
   }
-
+  if (params_.interface_name.size() == 1)
+  {
+    is_simulate = true;
+    RCLCPP_WARN(get_node()->get_logger(), "use simulate interface interl pid mode");
+    // 加载并创建pid模块
+  }
+  else
+  {
+    is_simulate = false;
+    RCLCPP_WARN(get_node()->get_logger(), "use hardware interface ");
+  }
   // topics QoS
   auto subscribers_qos = rclcpp::SystemDefaultsQoS();
   subscribers_qos.keep_last(1);
@@ -141,25 +160,25 @@ controller_interface::CallbackReturn AdogLeggedController::on_configure(
     "~/set_slow_control_mode", set_slow_mode_service_callback,
     rmw_qos_profile_services_hist_keep_all);
 
-  try
-  {
-    // State publisher
-    s_publisher_ =
-      get_node()->create_publisher<ControllerStateMsg>("~/state", rclcpp::SystemDefaultsQoS());
-    state_publisher_ = std::make_unique<ControllerStatePublisher>(s_publisher_);
-  }
-  catch (const std::exception & e)
-  {
-    fprintf(
-      stderr, "Exception thrown during publisher creation at configure stage with message : %s \n",
-      e.what());
-    return controller_interface::CallbackReturn::ERROR;
-  }
+  // try
+  // {
+  //   // State publisher
+  //   s_publisher_ =
+  //     get_node()->create_publisher<ControllerStateMsg>("~/state", rclcpp::SystemDefaultsQoS());
+  //   state_publisher_ = std::make_unique<ControllerStatePublisher>(s_publisher_);
+  // }
+  // catch (const std::exception & e)
+  // {
+  //   fprintf(
+  //     stderr, "Exception thrown during publisher creation at configure stage with message : %s
+  //     \n", e.what());
+  //   return controller_interface::CallbackReturn::ERROR;
+  // }
 
   // TODO(anyone): Reserve memory in state publisher depending on the message type
-  state_publisher_->lock();
-  state_publisher_->msg_.header.frame_id = params_.joints[0];
-  state_publisher_->unlock();
+  // state_publisher_->lock();
+  // state_publisher_->msg_.header.frame_id = params_.joints[0];
+  // state_publisher_->unlock();
 
   RCLCPP_INFO(get_node()->get_logger(), "configure successful");
   return controller_interface::CallbackReturn::SUCCESS;
@@ -167,7 +186,8 @@ controller_interface::CallbackReturn AdogLeggedController::on_configure(
 
 void AdogLeggedController::reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg)
 {
-  if (msg->joint_names.size() == params_.joints.size())
+  //RCLCPP_ERROR(get_node()->get_logger(), "3");
+  if (msg->multi_jointmit_array.size() == params_.joints.size())
   {
     input_ref_.writeFromNonRT(msg);
   }
@@ -176,33 +196,64 @@ void AdogLeggedController::reference_callback(const std::shared_ptr<ControllerRe
     RCLCPP_ERROR(
       get_node()->get_logger(),
       "Received %zu , but expected %zu joints in command. Ignoring message.",
-      msg->joint_names.size(), params_.joints.size());
+      msg->multi_jointmit_array.size(), params_.joints.size());
   }
 }
 
-controller_interface::InterfaceConfiguration AdogLeggedController::command_interface_configuration() const
+controller_interface::InterfaceConfiguration AdogLeggedController::command_interface_configuration()
+  const
 {
   controller_interface::InterfaceConfiguration command_interfaces_config;
   command_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
   command_interfaces_config.names.reserve(params_.joints.size());
-  for (const auto & joint : params_.joints)
+  if (is_simulate)
   {
-    command_interfaces_config.names.push_back(joint + "/" + params_.interface_name);
+    RCLCPP_ERROR(get_node()->get_logger(), "4_1");
+
+    for (const auto & joint : params_.joints)
+    {
+      // RCLCPP_ERROR(get_node()->get_logger(), "4");
+
+      // command_interfaces_config.names.push_back(joint + "/" + params_.interface_name);
+      // command_interfaces_config.names.push_back(joint + "/" + "position");
+      // command_interfaces_config.names.push_back(joint + "/" + "velocity");
+      command_interfaces_config.names.push_back(joint + "/" + "effort");
+      // command_interfaces_config.names.push_back(joint + "/" + "kp");
+      // command_interfaces_config.names.push_back(joint + "/" + "kd");
+    }
+  }
+  else
+  {
+    RCLCPP_ERROR(get_node()->get_logger(), "4");
+    for (const auto & joint : params_.joints)
+    {
+      command_interfaces_config.names.push_back(joint + "/" + "position");
+      command_interfaces_config.names.push_back(joint + "/" + "velocity");
+      command_interfaces_config.names.push_back(joint + "/" + "effort");
+      command_interfaces_config.names.push_back(joint + "/" + "kp");
+      command_interfaces_config.names.push_back(joint + "/" + "kd");
+    }
   }
 
   return command_interfaces_config;
 }
 
-controller_interface::InterfaceConfiguration AdogLeggedController::state_interface_configuration() const
+controller_interface::InterfaceConfiguration AdogLeggedController::state_interface_configuration()
+  const
 {
+  RCLCPP_ERROR(get_node()->get_logger(), "5");
+
   controller_interface::InterfaceConfiguration state_interfaces_config;
   state_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
   state_interfaces_config.names.reserve(state_joints_.size());
   for (const auto & joint : state_joints_)
   {
-    state_interfaces_config.names.push_back(joint + "/" + params_.interface_name);
+    state_interfaces_config.names.push_back(joint + "/" + "position");
+    state_interfaces_config.names.push_back(joint + "/" + "velocity");
+    state_interfaces_config.names.push_back(joint + "/" + "effort");
+    // state_interfaces_config.names.push_back(joint + "/" + params_.interface_name);
   }
 
   return state_interfaces_config;
@@ -214,6 +265,7 @@ controller_interface::CallbackReturn AdogLeggedController::on_activate(
   // TODO(anyone): if you have to manage multiple interfaces that need to be sorted check
   // `on_activate` method in `JointTrajectoryController` for exemplary use of
   // `controller_interface::get_ordered_interfaces` helper function
+  RCLCPP_ERROR(get_node()->get_logger(), "6");
 
   // Set default value in command
   reset_controller_reference_msg(*(input_ref_.readFromRT)(), params_.joints);
@@ -224,6 +276,8 @@ controller_interface::CallbackReturn AdogLeggedController::on_activate(
 controller_interface::CallbackReturn AdogLeggedController::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
+  RCLCPP_ERROR(get_node()->get_logger(), "7");
+
   // TODO(anyone): depending on number of interfaces, use definitions, e.g., `CMD_MY_ITFS`,
   // instead of a loop
   for (size_t i = 0; i < command_interfaces_.size(); ++i)
@@ -240,26 +294,75 @@ controller_interface::return_type AdogLeggedController::update(
 
   // TODO(anyone): depending on number of interfaces, use definitions, e.g., `CMD_MY_ITFS`,
   // instead of a loop
-  for (size_t i = 0; i < command_interfaces_.size(); ++i)
-  {
-    if (!std::isnan((*current_ref)->displacements[i]))
-    {
-      if (*(control_mode_.readFromRT()) == control_mode_type::SLOW)
-      {
-        (*current_ref)->displacements[i] /= 2;
-      }
-      command_interfaces_[i].set_value((*current_ref)->displacements[i]);
 
-      (*current_ref)->displacements[i] = std::numeric_limits<double>::quiet_NaN();
+  if ((*current_ref)->multi_jointmit_array.size() > 0)
+  {
+    for (size_t i = 0, j = 0, k = 0;
+         i < command_interfaces_.size();)  // 在hardware interface的commend接口上面的长度
+    {
+      try
+      {
+        // RCLCPP_ERROR(
+        //   get_node()->get_logger(), "control joints %ld,total %ld %ld", j,
+        //   (*current_ref)->multi_jointmit_array.size(), command_interfaces_.size());
+        auto & jointmit = (*current_ref)->multi_jointmit_array.at(j);
+        // jointmit.effort = 1.0;
+        // jointmit.velocity = 2.0;
+        // jointmit.position = 3.0;
+        // command_interfaces_[i++].set_value(std::isnan(jointmit.effort) ? 0 : jointmit.effort);
+        // command_interfaces_[i++].set_value((std::isnan(jointmit.velocity) ? 0 :
+        // jointmit.velocity)); command_interfaces_[i++].set_value((std::isnan(jointmit.position) ?
+        // 0 : jointmit.position)); command_interfaces_[i++].set_value(2.4);//kp
+        // command_interfaces_[i++].set_value(2.5);//kd
+        // jointmit.effort = std::numeric_limits<double>::quiet_NaN();
+        // jointmit.velocity = std::numeric_limits<double>::quiet_NaN();
+        // jointmit.position = std::numeric_limits<double>::quiet_NaN();
+
+        // RCLCPP_ERROR_STREAM(get_node()->get_logger(), "type is" <<
+        // command_interfaces_[i].get_name() << std::endl);
+        if (is_simulate)
+        {
+          double current_position = state_interfaces_.at(k++).get_value();
+          double current_velocity = state_interfaces_.at(k++).get_value();
+          double current_effort = state_interfaces_.at(k++).get_value();
+          command_interfaces_[i++].set_value(
+            (jointmit.position - current_position) * jointmit.kp +
+            (jointmit.velocity - current_velocity) * jointmit.kd + jointmit.effort);  // effort
+
+                      // command_interfaces_[i++].set_value(0);  // effort
+        }
+        else
+        {
+          RCLCPP_ERROR(get_node()->get_logger(), "9");
+
+          command_interfaces_[i++].set_value(jointmit.position);  // position
+          command_interfaces_[i++].set_value(jointmit.velocity);  // velocity
+          command_interfaces_[i++].set_value(jointmit.effort);    // effort
+          command_interfaces_[i++].set_value(jointmit.kp);        // kp
+          command_interfaces_[i++].set_value(jointmit.kd);        // kd
+        }
+        j++;
+      }
+      catch (...)
+      {
+        RCLCPP_ERROR(get_node()->get_logger(), "out of range i j %ld %ld", i, j);
+        return controller_interface::return_type::ERROR;
+      }
     }
   }
 
-  if (state_publisher_ && state_publisher_->trylock())
-  {
-    state_publisher_->msg_.header.stamp = time;
-    state_publisher_->msg_.set_point = command_interfaces_[CMD_MY_ITFS].get_value();
-    state_publisher_->unlockAndPublish();
-  }
+  // RCLCPP_ERROR(
+  //   get_node()->get_logger(), "multi jointmit array size:%ld",
+  //   (*current_ref)->multi_jointmit_array.size());
+  // RCLCPP_ERROR(
+  //   get_node()->get_logger(), "multi jointmit :%f",
+  //   (*current_ref)->multi_jointmit_array.at(0).position);
+  // if (state_publisher_ && state_publisher_->trylock())
+  // {
+  //   state_publisher_->msg_.header.stamp = time;
+  //   state_publisher_->msg_.set_point = command_interfaces_[CMD_MY_ITFS].get_value();
+  //   state_publisher_->unlockAndPublish();
+  // }
 
   return controller_interface::return_type::OK;
 }

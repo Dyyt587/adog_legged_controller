@@ -38,13 +38,35 @@ adog_legged_controller:
     }
   }
   interface_name: {
-    type: string,
-    default_value: "",
+    type: string_array,
+    default_value: [],
     description: "Name of the interface used by the controller on joints and command_joints.",
     read_only: true,
     validation: {
-      not_empty<>: null,
-      one_of<>: [["position", "velocity", "acceleration", "effort",]],
-      forbidden_interface_name_prefix: null
+      unique<>: null,
+    }
+  }
+  kp: {
+    type: double_array,
+    default_value: [],
+    description: "Description for new parameter kp.",
+    read_only: true,
+    validation: {
+    }
+  }
+  ki: {
+    type: double_array,
+    default_value: [],
+    description: "Description for new parameter ki.",
+    read_only: true,
+    validation: {
+    }
+  }
+  kd: {
+    type: double_array,
+    default_value: [],
+    description: "Description for new parameter kd.",
+    read_only: true,
+    validation: {
     }
   }
