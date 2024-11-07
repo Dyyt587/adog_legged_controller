@@ -186,7 +186,7 @@ controller_interface::CallbackReturn AdogLeggedController::on_configure(
 
 void AdogLeggedController::reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg)
 {
-  //RCLCPP_ERROR(get_node()->get_logger(), "3");
+  // RCLCPP_ERROR(get_node()->get_logger(), "3");
   if (msg->multi_jointmit_array.size() == params_.joints.size())
   {
     input_ref_.writeFromNonRT(msg);
@@ -329,7 +329,7 @@ controller_interface::return_type AdogLeggedController::update(
             (jointmit.position - current_position) * jointmit.kp +
             (jointmit.velocity - current_velocity) * jointmit.kd + jointmit.effort);  // effort
 
-                      // command_interfaces_[i++].set_value(0);  // effort
+          // command_interfaces_[i++].set_value(0);  // effort
         }
         else
         {
