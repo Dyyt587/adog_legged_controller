@@ -44,7 +44,6 @@
 #include "rcl_interfaces/msg/integer_range.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 
-
 namespace adog_legged_controller
 {
 // name constants for state interfaces
@@ -60,7 +59,7 @@ enum class control_mode_type : std::uint8_t
   SLOW = 1,
 };
 
-class AdogLeggedController : public controller_interface::ControllerInterface 
+class AdogLeggedController : public controller_interface::ControllerInterface
 {
 public:
   ADOG_LEGGED_CONTROLLER__VISIBILITY_PUBLIC
@@ -98,7 +97,6 @@ public:
   // using ControllerStateMsg = control_msgs::msg::JointControllerState;
 
 protected:
-
   std::shared_ptr<adog_legged_controller::ParamListener> param_listener_;
   adog_legged_controller::Params params_;
 
@@ -117,7 +115,7 @@ protected:
   // std::unique_ptr<ControllerStatePublisher> state_publisher_;
 
 private:
-  bool is_simulate=true; 
+  bool is_simulate = true;
   // callback for topic interface
   ADOG_LEGGED_CONTROLLER__VISIBILITY_LOCAL
   void reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg);
