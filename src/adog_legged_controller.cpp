@@ -340,6 +340,12 @@ controller_interface::return_type AdogLeggedController::update(
           command_interfaces_[i++].set_value(jointmit.effort);    // effort
           command_interfaces_[i++].set_value(jointmit.kp);        // kp
           command_interfaces_[i++].set_value(jointmit.kd);        // kd
+
+          // command_interfaces_[i++].set_value(0);  // position
+          // command_interfaces_[i++].set_value(0);  // velocity
+          // command_interfaces_[i++].set_value(0);    // effort
+          // command_interfaces_[i++].set_value(0);        // kp
+          // command_interfaces_[i++].set_value(0.1);        // kd
         }
         j++;
       }
@@ -349,6 +355,17 @@ controller_interface::return_type AdogLeggedController::update(
         return controller_interface::return_type::ERROR;
       }
     }
+  }else{
+
+    for (size_t i = 0;
+         i < command_interfaces_.size();i++)  // 在hardware interface的commend接口上面的长度
+    {
+
+     // command_interfaces_[i++].set_value(0);
+
+    }
+
+
   }
 
   // RCLCPP_ERROR(
